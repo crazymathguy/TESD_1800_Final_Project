@@ -23,25 +23,38 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Button;
 
 record Triangle(Vertex p1, Vertex p2, Vertex p3) {
-	static Triangle createAndRegister(Vertex p1, Vertex p2, Vertex p3, ArrayList<Triangle> triangles) {
+	static Triangle createAndRegister(Vertex p1, Vertex p2, Vertex p3, ArrayList<Triangle> list) {
 		Triangle triangle = new Triangle(p1, p2, p3);
 		p1.addConnectedTriangle(triangle);
 		p2.addConnectedTriangle(triangle);
 		p3.addConnectedTriangle(triangle);
-		triangles.add(triangle);
+		list.add(triangle);
 		return triangle;
 	}
 
 	Vertex[] getVertices() {
 		return new Vertex[] {p1, p2, p3};
 	}
+
+	Point3D getCenter() {
+		double xAverage = (p1.getX() + p2.getX() + p3.getX()) / 3.0;
+		double yAverage = (p1.getY() + p2.getY() + p3.getY()) / 3.0;
+		double zAverage = (p1.getZ() + p2.getZ() + p3.getZ()) / 3.0;
+		return new Point3D(xAverage, yAverage, zAverage);
+	}
 }
 
 class Vertex extends Point3D implements Serializable {
 	private final ArrayList<Triangle> connectedTriangles = new ArrayList<>();
 
-	Vertex(double x, double y, double z) {
+	private Vertex(double x, double y, double z) {
 		super(x, y, z);
+	}
+
+	static Vertex createAndRegister(double x, double y, double z, ArrayList<Vertex> list) {
+		Vertex vertex = new Vertex(x, y, z);
+		list.add(vertex);
+		return vertex;
 	}
 
 	void addConnectedTriangle(Triangle triangle) {
@@ -258,88 +271,61 @@ public class ThreeDimensionalScene extends Application {
 		mainPane.requestFocus();
 		mainPane.setCursor(Cursor.HAND);
 
-		clearScene();
+		clearScene(true);
 
 		// Test objects
 		// pressing 'q' will draw the square, pressing 'w' will draw the triangle, and 'e' the cube
 	}
 
 	void createTestCube() {
-		clearScene();
-		Vertex v1 = new Vertex(-1, -1, 1);
-		Vertex v2 = new Vertex(-1, -1, -1);
-		Vertex v3 = new Vertex(1, -1, -1);
-		Vertex v4 = new Vertex(1, -1, 1);
-		Vertex v5 = new Vertex(-1, 1, 1);
-		Vertex v6 = new Vertex(-1, 1, -1);
-		Vertex v7 = new Vertex(1, 1, -1);
-		Vertex v8 = new Vertex(1, 1, 1);
-		points.add(v1);
-		points.add(v4);
-		points.add(v5);
-		points.add(v8);
-		points.add(v2);
-		points.add(v3);
-		points.add(v6);
-		points.add(v7);
-		Triangle t9 = Triangle.createAndRegister(v1, v4, v8, triangles);
-		Triangle t10 = Triangle.createAndRegister(v1, v5, v8, triangles);
-		Triangle t1 = Triangle.createAndRegister(v1, v2, v3, triangles);
-		Triangle t2 = Triangle.createAndRegister(v1, v3, v4, triangles);
-		Triangle t3 = Triangle.createAndRegister(v1, v2, v6, triangles);
-		Triangle t4 = Triangle.createAndRegister(v1, v5, v6, triangles);
-		Triangle t7 = Triangle.createAndRegister(v3, v4, v8, triangles);
-		Triangle t8 = Triangle.createAndRegister(v3, v7, v8, triangles);
-		Triangle t11 = Triangle.createAndRegister(v5, v6, v7, triangles);
-		Triangle t12 = Triangle.createAndRegister(v5, v8, v7, triangles);
-		Triangle t5 = Triangle.createAndRegister(v2, v3, v6, triangles);
-		Triangle t6 = Triangle.createAndRegister(v3, v6, v7, triangles);
-		drawTriangle(t9);
-		drawTriangle(t10);
-		drawTriangle(t1);
-		drawTriangle(t2);
-		drawTriangle(t3);
-		drawTriangle(t4);
-		drawTriangle(t7);
-		drawTriangle(t8);
-		drawTriangle(t11);
-		drawTriangle(t12);
-		drawTriangle(t5);
-		drawTriangle(t6);
+		clearScene(false);
+		Vertex v1 = Vertex.createAndRegister(-1, -1, 1, points);
+		Vertex v2 = Vertex.createAndRegister(-1, -1, -1, points);
+		Vertex v3 = Vertex.createAndRegister(1, -1, -1, points);
+		Vertex v4 = Vertex.createAndRegister(1, -1, 1, points);
+		Vertex v5 = Vertex.createAndRegister(-1, 1, 1, points);
+		Vertex v6 = Vertex.createAndRegister(-1, 1, -1, points);
+		Vertex v7 = Vertex.createAndRegister(1, 1, -1, points);
+		Vertex v8 = Vertex.createAndRegister(1, 1, 1, points);
+		Triangle.createAndRegister(v1, v2, v3, triangles);
+		Triangle.createAndRegister(v1, v3, v4, triangles);
+		Triangle.createAndRegister(v1, v2, v6, triangles);
+		Triangle.createAndRegister(v1, v5, v6, triangles);
+		Triangle.createAndRegister(v2, v3, v6, triangles);
+		Triangle.createAndRegister(v3, v6, v7, triangles);
+		Triangle.createAndRegister(v3, v4, v8, triangles);
+		Triangle.createAndRegister(v3, v7, v8, triangles);
+		Triangle.createAndRegister(v1, v4, v8, triangles);
+		Triangle.createAndRegister(v1, v5, v8, triangles);
+		Triangle.createAndRegister(v5, v6, v7, triangles);
+		Triangle.createAndRegister(v5, v8, v7, triangles);
+		draw();
 	}
 
 	void createTestSquare() {
-		clearScene();
-		Vertex p1 = new Vertex(0, -1, -1);
-		points.add(p1);
-		Vertex p2 = new Vertex(0, -1, 1);
-		points.add(p2);
-		Vertex p3 = new Vertex(0, 1, 1);
-		points.add(p3);
-		Vertex p4 = new Vertex(0, 1, -1);
-		points.add(p4);
-		Triangle t1 = Triangle.createAndRegister(p1, p2, p3, triangles);
-		drawTriangle(t1);
-		Triangle t2 = Triangle.createAndRegister(p1, p3, p4, triangles);
-		drawTriangle(t2);
+		clearScene(false);
+		Vertex p1 = Vertex.createAndRegister(0, -1, -1, points);
+		Vertex p2 = Vertex.createAndRegister(0, -1, 1, points);
+		Vertex p3 = Vertex.createAndRegister(0, 1, 1, points);
+		Vertex p4 = Vertex.createAndRegister(0, 1, -1, points);
+		Triangle.createAndRegister(p1, p2, p3, triangles);
+		Triangle.createAndRegister(p1, p3, p4, triangles);
+		draw();
 	}
 
 	void createTestTriangle() {
-		clearScene();
-		Vertex p1 = new Vertex(-1, -1, 0);
-		points.add(p1);
-		Vertex p2 = new Vertex(1, -1, 0);
-		points.add(p2);
-		Vertex p3 = new Vertex(0, 1, 0);
-		points.add(p3);
-		Triangle mainTriangle = Triangle.createAndRegister(p1, p2, p3, triangles);
-		drawTriangle(mainTriangle);
+		clearScene(false);
+		Vertex p1 = Vertex.createAndRegister(1, -1, 0, points);
+		Vertex p2 = Vertex.createAndRegister(1, -1, 0, points);
+		Vertex p3 = Vertex.createAndRegister(0, 1, 0, points);
+		Triangle.createAndRegister(p1, p2, p3, triangles);
+		draw();
 	}
 
-	void clearScene() {
+	void clearScene(boolean draw) {
 		points.clear();
 		triangles.clear();
-		draw();
+		if (draw) draw();
 	}
 
 	void draw() {
@@ -366,12 +352,9 @@ public class ThreeDimensionalScene extends Application {
 			zAxis.setStroke(new Color(0, 0, 1, 0.2));
 			mainPane.getChildren().add(zAxis);
 		}
-		// Redraw all elements
-		for (Triangle triangle : triangles) {
-			drawTriangle(triangle);
-		}
+		// Redraw all triangles
+		drawAllTriangles();
 		if (!pane) mainPane.requestFocus();
-		pane = true;
 	}
 
 	Point2D project(Point3D point) {
@@ -441,8 +424,8 @@ public class ThreeDimensionalScene extends Application {
 			int next = (i + 1) % 3;
 			if (projectedPoints[i] == null) {
 				double z = vertices[i].getZ();
-				Point3D interpolated1 = projectedPoints[previous] == null ? null : vertices[i].interpolate(vertices[previous], (z - (camera.getZ() + 0.01)) / (z - vertices[previous].getZ()));
-				Point3D interpolated2 = projectedPoints[next] == null ? null : vertices[i].interpolate(vertices[next], (z - (camera.getZ() + 0.01)) / (z - vertices[next].getZ()));
+				Point3D interpolated1 = projectedPoints[previous] == null ? null : vertices[i].interpolate(vertices[previous], (z - (camera.getZ() + 0.001)) / (z - vertices[previous].getZ()));
+				Point3D interpolated2 = projectedPoints[next] == null ? null : vertices[i].interpolate(vertices[next], (z - (camera.getZ() + 0.001)) / (z - vertices[next].getZ()));
 				Point2D clipped1 = project(interpolated1);
 				if (clipped1 != null) polygon.getPoints().addAll(clipped1.getX(), clipped1.getY());
 				Point2D clipped2 = project(interpolated2);
@@ -452,6 +435,30 @@ public class ThreeDimensionalScene extends Application {
 			}
 		}
 		return polygon;
+	}
+
+	void drawAllTriangles() {
+		if (triangles.isEmpty()) return;
+		ArrayList<Double> distances = new ArrayList<>();
+		distances.add(Double.NEGATIVE_INFINITY);
+		ArrayList<Triangle> sortedTriangles = new ArrayList<>();
+		for (Triangle triangle : triangles) {
+			double distance = camera.distance(triangle.getCenter());
+			int currentSize = distances.size();
+			for (int i = 0; i < currentSize; i++) {
+				if (distance > distances.get(i)) {
+					distances.add(i, distance);
+					sortedTriangles.add(i, triangle);
+				}
+			}
+			if (distances.isEmpty()) {
+				distances.add(distance);
+				sortedTriangles.add(triangle);
+			}
+		}
+		for (Triangle triangle : sortedTriangles) {
+			drawTriangle(triangle);
+		}
 	}
 
 	public static void main(String[] args) throws Exception {
