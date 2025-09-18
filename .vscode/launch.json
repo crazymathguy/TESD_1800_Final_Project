@@ -4,7 +4,14 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
+        {
+            "type": "java",
+            "name": "ThreeDimensionalScene",
+            "request": "launch",
+            "mainClass": "ThreeDimensionalScene",
+            "projectName": "TESD_1800_Final_Project_232a3b6a",
+            "vmArgs": "--module-path C:/Users/seanm/source/javafx-sdk-24.0.2/lib --add-modules javafx.controls,javafx.fxml"
+        },
         {
             "type": "java",
             "name": "Current File",
@@ -12,13 +19,5 @@
             "mainClass": "${file}",
             "vmArgs": "--module-path C:/Users/seanm/source/javafx-sdk-24.0.2/lib --add-modules javafx.controls,javafx.fxml"
         },
-        {
-            "type": "java",
-            "name": "ThreeDimensionalRendering",
-            "request": "launch",
-            "mainClass": "ThreeDimensionalRendering",
-            "projectName": "TESD_1800_Final_Project_232a3b6a",
-            "vmArgs": "--module-path C:/Users/seanm/source/javafx-sdk-24.0.2/lib --add-modules javafx.controls,javafx.fxml"
-        }
     ]
 }
