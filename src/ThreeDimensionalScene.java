@@ -22,58 +22,13 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Label;
 import javafx.scene.control.Button;
 
-record Triangle(Vertex p1, Vertex p2, Vertex p3) {
-	static Triangle createAndRegister(Vertex p1, Vertex p2, Vertex p3, ArrayList<Triangle> list) {
-		Triangle triangle = new Triangle(p1, p2, p3);
-		p1.addConnectedTriangle(triangle);
-		p2.addConnectedTriangle(triangle);
-		p3.addConnectedTriangle(triangle);
-		list.add(triangle);
-		return triangle;
-	}
-
-	Vertex[] getVertices() {
-		return new Vertex[] {p1, p2, p3};
-	}
-
-	Point3D getCenter() {
-		double xAverage = (p1.getX() + p2.getX() + p3.getX()) / 3.0;
-		double yAverage = (p1.getY() + p2.getY() + p3.getY()) / 3.0;
-		double zAverage = (p1.getZ() + p2.getZ() + p3.getZ()) / 3.0;
-		return new Point3D(xAverage, yAverage, zAverage);
-	}
-}
-
-class Vertex extends Point3D implements Serializable {
-	private final ArrayList<Triangle> connectedTriangles = new ArrayList<>();
-
-	private Vertex(double x, double y, double z) {
-		super(x, y, z);
-	}
-
-	static Vertex createAndRegister(double x, double y, double z, ArrayList<Vertex> list) {
-		Vertex vertex = new Vertex(x, y, z);
-		list.add(vertex);
-		return vertex;
-	}
-
-	void addConnectedTriangle(Triangle triangle) {
-		connectedTriangles.add(triangle);
-	}
-
-	ArrayList<Triangle> getConnectedTriangles() {
-		return connectedTriangles;
-	}
-}
-
 public class ThreeDimensionalScene extends Application implements Serializable {
 	// Conversion factor from world coordinates to screen coordinates
 	private static final double WORLD_TO_SCREEN_CONVERSION = 175;
 		// (700 / 4): 700 is the width of the window, 4.0 is the width of the screen in world coordinates, i.e. 1 unit is 175 pixels
 	// private static final Point3D ORIGIN = new Point3D(0, 0, 0);
 
-	private Point3D camera = new Point3D(0.0, 0.0, -6.0); // camera position
-	private double focalLength = 3.0; // distance from the camera to the projection plane
+	private final Camera camera = new Camera(new Point3D(3.0, 0.0, -6.0), new Rotation(0.0, -60.0, 0.0), 3.0); // camera
 	private int renderMode = 1;
 	//private int tool = 1;
 
@@ -161,7 +116,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				xCoordinate.selectAll();
 			} else {
 				xCoordinate.setText(Double.valueOf(xCoordinate.getText()).toString());
-				camera = new Point3D(Double.parseDouble(xCoordinate.getText()), camera.getY(), camera.getZ());
+				camera.setX(Double.parseDouble(xCoordinate.getText()));
 				draw();
 			}
 		});
@@ -181,7 +136,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				yCoordinate.selectAll();
 			} else {
 				yCoordinate.setText(Double.valueOf(yCoordinate.getText()).toString());
-				camera = new Point3D(camera.getX(), Double.parseDouble(yCoordinate.getText()), camera.getZ());
+				camera.setY(Double.parseDouble(yCoordinate.getText()));
 				draw();
 			}
 		});
@@ -201,18 +156,15 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				zCoordinate.selectAll();
 			} else {
 				zCoordinate.setText(Double.valueOf(zCoordinate.getText()).toString());
-				camera = new Point3D(camera.getX(), camera.getY(), Double.parseDouble(zCoordinate.getText()));
+				camera.setZ(Double.parseDouble(zCoordinate.getText()));
 				draw();
 			}
 		});
 
 		mainPane.setOnKeyPressed(event -> {
 			switch (event.getCode()) {
-				case UP -> focalLength += 0.1;
-				case DOWN -> {
-					focalLength -= 0.1;
-					if (focalLength < 0.1) focalLength = 0.1;
-				}
+				case UP -> camera.setFocalLength(camera.getFocalLength() + 0.1);
+				case DOWN -> camera.setFocalLength(camera.getFocalLength() - 0.1);
 				case P -> {
 					if (pane) {
 						backPane.setRight(null);
@@ -238,8 +190,9 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		mainPane.heightProperty().addListener(windowSizeListener);
 
 		mainPane.setOnScroll(event -> {
-			camera = new Point3D(camera.getX(), camera.getY(), camera.getZ() - event.getDeltaY() / 100.0);
-			zCoordinate.setText(Double.toString(Math.round(camera.getZ() * 1000) / 1000.0));
+			double newZ = Math.round((camera.getZ() - event.getDeltaY() / WORLD_TO_SCREEN_CONVERSION) * 1000) / 1000.0;
+			camera.setZ(newZ);
+			zCoordinate.setText(Double.toString(newZ));
 			draw();
 		});
 		mainPane.setOnMousePressed(event -> {
@@ -251,14 +204,14 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		});
 		mainPane.setOnMouseDragged(event -> {
 			if (dragging != 1) return;
-			double camX = camera.getX() + (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION;
-			double camY = camera.getY() - (lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
-			camera = new Point3D(camX, camY, camera.getZ());
+			double camX = Math.round((camera.getX() + (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION) * 1000) / 1000.0;
+			double camY = Math.round((camera.getY() - (lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION) * 1000) / 1000.0;
+			camera.setPosition(new Point3D(camX, camY, camera.getZ()));
 			lastX = event.getX();
 			lastY = event.getY();
-			xCoordinate.setText(Double.toString(Math.round(camera.getX() * 1000) / 1000.0));
-			yCoordinate.setText(Double.toString(Math.round(camera.getY() * 1000) / 1000.0));
-			zCoordinate.setText(Double.toString(Math.round(camera.getZ() * 1000) / 1000.0));
+			xCoordinate.setText(Double.toString(camera.getX()));
+			yCoordinate.setText(Double.toString(camera.getY()));
+			zCoordinate.setText(Double.toString(camera.getZ()));
 			draw();
 		});
 		mainPane.setOnMouseReleased(_ -> {
@@ -371,7 +324,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			ArrayList<Double> distances = new ArrayList<>();
 			distances.add(Double.NEGATIVE_INFINITY);
 			for (Triangle triangle : triangles) {
-				double distance = camera.distance(triangle.getCenter());
+				double distance = camera.getPosition().distance(triangle.getCenter());
 				int currentSize = distances.size();
 				for (int i = 0; i < currentSize; i++) {
 					if (distance > distances.get(i)) {
@@ -460,9 +413,9 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			int previous = (i + 2) % 3;
 			int next = (i + 1) % 3;
 			if (projectedPoints[i] == null) {
-				double z = vertices[i].getZ();
-				Point3D interpolated1 = projectedPoints[previous] == null ? null : vertices[i].interpolate(vertices[previous], (z - (camera.getZ() + 0.001)) / (z - vertices[previous].getZ()));
-				Point3D interpolated2 = projectedPoints[next] == null ? null : vertices[i].interpolate(vertices[next], (z - (camera.getZ() + 0.001)) / (z - vertices[next].getZ()));
+				double z = camera.convertToCameraCoordinates(vertices[i]).getZ();
+				Point3D interpolated1 = projectedPoints[previous] == null ? null : vertices[i].interpolate(vertices[previous], (z - (camera.getZ() + 0.001)) / (z - camera.convertToCameraCoordinates(vertices[previous]).getZ()));
+				Point3D interpolated2 = projectedPoints[next] == null ? null : vertices[i].interpolate(vertices[next], (z - (camera.getZ() + 0.001)) / (z - camera.convertToCameraCoordinates(vertices[next]).getZ()));
 				Point2D clipped1 = project(interpolated1);
 				if (clipped1 != null) polygon.getPoints().addAll(clipped1.getX(), clipped1.getY());
 				Point2D clipped2 = project(interpolated2);
@@ -476,9 +429,10 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 
 	Point2D project(Point3D point) {
 		if (point == null) return null;
-		if (point.getZ() < camera.getZ() + 0.001) return null;
-		double x = focalLength / (point.getZ() - camera.getZ()) * (point.getX() - camera.getX()) * WORLD_TO_SCREEN_CONVERSION + mainPane.getWidth() / 2;
-		double y = focalLength / (point.getZ() - camera.getZ()) * -(point.getY() - camera.getY()) * WORLD_TO_SCREEN_CONVERSION + mainPane.getHeight() / 2;
+		Point3D convertedPoint = camera.convertToCameraCoordinates(point);
+		if (convertedPoint.getZ() < 0.001) return null;
+		double x = camera.getFocalLength() / convertedPoint.getZ() * convertedPoint.getX() * WORLD_TO_SCREEN_CONVERSION + mainPane.getWidth() / 2;
+		double y = camera.getFocalLength() / convertedPoint.getZ() * -convertedPoint.getY() * WORLD_TO_SCREEN_CONVERSION + mainPane.getHeight() / 2;
 		return new Point2D(x, y);
 	}
 
