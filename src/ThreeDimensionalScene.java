@@ -28,7 +28,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		// (700 / 4): 700 is the width of the window, 4.0 is the width of the screen in world coordinates, i.e. 1 unit is 175 pixels
 	// private static final Point3D ORIGIN = new Point3D(0, 0, 0);
 
-	private final Camera camera = new Camera(new Point3D(3.0, 2.0, -6.0), Rotation.RotationByDegrees(-20.0, -30.0, 0.0), 3.0); // camera
+	private final Camera camera = new Camera(new Point3D(-3.0, 2.5, -6.0), Rotation.RotationByDegrees(-20.0, 30.0, 0.0), 3.0); // camera
 	private int renderMode = 1;
 	//private int tool = 1;
 
@@ -190,9 +190,11 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		mainPane.heightProperty().addListener(windowSizeListener);
 
 		mainPane.setOnScroll(event -> {
-			double newZ = camera.getZ() - event.getDeltaY() / WORLD_TO_SCREEN_CONVERSION;
-			camera.setZ(newZ);
-			zCoordinate.setText(Double.toString(newZ));
+			double deltaZ = -event.getDeltaY() / WORLD_TO_SCREEN_CONVERSION;
+			camera.setPosition(camera.convertToWorldCoordinates(new Point3D(0, 0, deltaZ)));
+			xCoordinate.setText(Double.toString(camera.getX()));
+			yCoordinate.setText(Double.toString(camera.getY()));
+			zCoordinate.setText(Double.toString(camera.getZ()));
 			draw();
 		});
 		mainPane.setOnMousePressed(event -> {
@@ -204,9 +206,9 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		});
 		mainPane.setOnMouseDragged(event -> {
 			if (dragging != 1) return;
-			double camX = camera.getX() + (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION;
-			double camY = camera.getY() - (lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
-			camera.setPosition(new Point3D(camX, camY, camera.getZ()));
+			double deltaX = (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION;
+			double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
+			camera.setPosition(camera.convertToWorldCoordinates(new Point3D(deltaX, deltaY, 0)));
 			lastX = event.getX();
 			lastY = event.getY();
 			xCoordinate.setText(Double.toString(camera.getX()));

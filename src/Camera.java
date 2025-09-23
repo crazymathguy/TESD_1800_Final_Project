@@ -17,7 +17,11 @@ public class Camera implements Serializable {
     }
 
 	public void setPosition(Point3D position) {
-		this.position = position;
+		this.position = new Point3D(
+            Math.round(position.getX() * 1000) / 1000.0,
+            Math.round(position.getY() * 1000) / 1000.0,
+            Math.round(position.getZ() * 1000) / 1000.0
+        );
 	}
 
     public double getX() {
@@ -95,20 +99,24 @@ public class Camera implements Serializable {
         double y = point.getY();
         double z = point.getZ();
         // rotate back around z axis
-        tempX = -x * Math.cos(orientation.z()) + y * Math.sin(orientation.z());
-        tempY = -x * Math.sin(orientation.z()) - y * Math.cos(orientation.z());
+        tempX = x * Math.cos(-orientation.z()) - y * Math.sin(-orientation.z());
+        tempY = x * Math.sin(-orientation.z()) + y * Math.cos(-orientation.z());
         x = tempX;
         y = tempY;
         // rotate back around x axis
-        tempY = -y * Math.cos(orientation.x()) + z * Math.sin(orientation.x());
-        tempZ = -y * Math.sin(orientation.x()) - z * Math.cos(orientation.x());
+        tempY = y * Math.cos(-orientation.x()) - z * Math.sin(-orientation.x());
+        tempZ = y * Math.sin(-orientation.x()) + z * Math.cos(-orientation.x());
         y = tempY;
         z = tempZ;
         // rotate back around y axis
-        tempX = -x * Math.cos(orientation.y()) + z * Math.sin(orientation.y());
-        tempZ = -x * Math.sin(orientation.y()) - z * Math.cos(orientation.y());
+        tempX = x * Math.cos(-orientation.y()) - z * Math.sin(-orientation.y());
+        tempZ = x * Math.sin(-orientation.y()) + z * Math.cos(-orientation.y());
         x = tempX;
         z = tempZ;
+
+        x = x + position.getX();
+        y = y + position.getY();
+        z = z + position.getZ();
 
         return new Point3D(x, y, z);
     }
