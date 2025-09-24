@@ -15,12 +15,14 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Label;
 import javafx.scene.control.Button;
+import javax.swing.text.html.HTMLDocument;
 
 public class ThreeDimensionalScene extends Application implements Serializable {
 	// Conversion factor from world coordinates to screen coordinates
@@ -30,17 +32,22 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 
 	private final Camera camera = new Camera(new Point3D(-3.0, 2.5, -6.0), Rotation.RotationByDegrees(-20.0, 30.0, 0.0), 3.0); // camera
 	private int renderMode = 1;
-	//private int tool = 1;
+	private int tool = 1;
 
 	private transient Pane mainPane;
 	private transient Line xAxis; // Line representing the X axis
 	private transient Line yAxis; // Line representing the Y axis
 	private transient Line zAxis; // Line representing the Z axis
+	private transient Rectangle selection;
 
+	private transient double startX; // Original mouse X position during drag
+	private transient double startY; // Original mouse Y position during drag
 	private transient double lastX; // Last mouse X position during drag
 	private transient double lastY; // Last mouse Y position during drag
-	private transient int dragging; // Is the mouse currently dragging?
+	private transient boolean dragging; // Is the mouse currently dragging?
 	private transient boolean pane; // Is the side pane currently open?
+
+	private final transient ArrayList<Vertex> selectedVertices = new ArrayList<>();
 
 	// Store points and triangles in the scene
 	private final ArrayList<Vertex> points = new ArrayList<>();
@@ -163,8 +170,8 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 
 		mainPane.setOnKeyPressed(event -> {
 			switch (event.getCode()) {
-				case UP -> camera.setFocalLength(camera.getFocalLength() + 0.1);
-				case DOWN -> camera.setFocalLength(camera.getFocalLength() - 0.1);
+				case UP -> {if (tool <= 2) camera.setFocalLength(camera.getFocalLength() + 0.1);}
+				case DOWN -> {if (tool <= 2) camera.setFocalLength(camera.getFocalLength() - 0.1);}
 				case P -> {
 					if (pane) {
 						backPane.setRight(null);
@@ -178,9 +185,21 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				case DIGIT1 -> createTestSquare();
 				case DIGIT2 -> createTestTriangle();
 				case DIGIT3 -> createTestCube();
-				//case Q -> tool = 1;
-				//case W -> tool = 2;
-				//case E -> tool = 3;
+				case Q -> {
+					if (dragging) return;
+					tool = 1;
+					mainPane.setCursor(Cursor.HAND);
+				}
+				case W -> {
+					if (dragging) return;
+					tool = 2;
+					mainPane.setCursor(Cursor.HAND);
+				}
+				case E -> {
+					if (dragging) return;
+					tool = 3;
+					mainPane.setCursor(Cursor.DEFAULT);
+				}
 				default -> {}
 			}
 			draw();
@@ -190,6 +209,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		mainPane.heightProperty().addListener(windowSizeListener);
 
 		mainPane.setOnScroll(event -> {
+			if (tool > 2) return;
 			double deltaZ = -event.getDeltaY() / WORLD_TO_SCREEN_CONVERSION;
 			camera.setPosition(camera.convertToWorldCoordinates(new Point3D(0, 0, deltaZ)));
 			xCoordinate.setText(Double.toString(camera.getX()));
@@ -198,28 +218,57 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			draw();
 		});
 		mainPane.setOnMousePressed(event -> {
-			if (mainPane.getCursor() == Cursor.DEFAULT) return;
-			mainPane.setCursor(Cursor.CLOSED_HAND);
+			startX = event.getX();
+			startY = event.getY();
 			lastX = event.getX();
 			lastY = event.getY();
-			dragging = 1;
+			dragging = true;
+			if (tool <= 2) mainPane.setCursor(Cursor.CLOSED_HAND);
+			if (tool == 3) {
+				selectedVertices.clear();
+				draw();
+			}
 		});
 		mainPane.setOnMouseDragged(event -> {
-			if (dragging != 1) return;
-			double deltaX = (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION;
-			double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
-			camera.setPosition(camera.convertToWorldCoordinates(new Point3D(deltaX, deltaY, 0)));
-			lastX = event.getX();
-			lastY = event.getY();
-			xCoordinate.setText(Double.toString(camera.getX()));
-			yCoordinate.setText(Double.toString(camera.getY()));
-			zCoordinate.setText(Double.toString(camera.getZ()));
-			draw();
+			switch (tool) {
+				case 1 -> {
+					double deltaX = (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION;
+					double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
+					lastX = event.getX();
+					lastY = event.getY();
+					camera.setPosition(camera.convertToWorldCoordinates(new Point3D(deltaX, deltaY, 0)));
+					xCoordinate.setText(Double.toString(camera.getX()));
+					yCoordinate.setText(Double.toString(camera.getY()));
+					zCoordinate.setText(Double.toString(camera.getZ()));
+					draw();
+				}
+				case 2 -> {
+					double deltaX = (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION * Math.PI / 6;
+					double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION * Math.PI / 6;
+					lastX = event.getX();
+					lastY = event.getY();
+					camera.setOrientation(camera.getOrientation().add(deltaY, deltaX, 0));
+					draw();
+				}
+				case 3 -> {
+					draw();
+					double width = event.getX() - startX;
+					double height = event.getY() - startY;
+					selection = new Rectangle(startX + Math.min(0, width), startY + Math.min(0, height), Math.abs(width), Math.abs(height));
+					selection.setStroke(Color.WHITE);
+					selection.setFill(new Color(1, 1, 1, 0.5));
+					mainPane.getChildren().add(selection);
+				}
+				default -> {}
+			}
 		});
 		mainPane.setOnMouseReleased(_ -> {
-			if (dragging != 1) return;
-			mainPane.setCursor(Cursor.HAND);
-			dragging = 0;
+			dragging = false;
+			if (tool <= 2) mainPane.setCursor(Cursor.HAND);
+			if (tool == 3) {
+				selection = null;
+				draw();
+			}
 		});
 
 		Scene scene = new Scene(backPane, 700, 500);
@@ -228,10 +277,12 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		primaryStage.show();
 		mainPane.requestFocus();
 		mainPane.setCursor(Cursor.HAND);
+		tool = 1;
 
-		clearScene(true);
+		// clearScene(true);
 
 		// Test objects
+		createTestCube();
 		// pressing 'q' will draw the square, pressing 'w' will draw the triangle, and 'e' the cube
 	}
 
@@ -362,36 +413,37 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		for (Vertex v : triangle.getVertices()) {
 			drawPoint(v);
 		}
+
 		polygon.setOnMouseEntered(_ -> {
-			if (dragging == 3) {
-				dragging = 2;
-				return;
-			}
-			if (renderMode > 0) {
+			if (tool != 3) return;
+			if (renderMode > 0 && !dragging) {
 				polygon.setFill(Color.LIGHTGRAY);
-				mainPane.setCursor(Cursor.DEFAULT);
 			}
 		});
-		polygon.setOnMouseClicked(null);
 		polygon.setOnMousePressed(_ -> {
-			dragging = 2;
+			dragging = true;
+			if (tool != 3) return;
+			selectedVertices.clear();
+			draw();
 		});
 		polygon.setOnMouseReleased(_ -> {
-			if (dragging < 2) return;
-			if (dragging == 3) {
-				polygon.setFill(Color.DARKGRAY);
-				mainPane.setCursor(Cursor.HAND);
-			}
-			dragging = 0;
+			dragging = false;
+			if (tool != 3) return;
+			selection = null;
+			draw();
 		});
 		polygon.setOnMouseExited(_ -> {
-			if (dragging == 2) {
-				dragging = 3;
-				return;
-			}
-			if (renderMode > 0) {
+			if (tool != 3) return;
+			if (renderMode > 0 && !dragging) {
 				polygon.setFill(Color.DARKGRAY);
-				mainPane.setCursor(Cursor.HAND);
+			}
+		});
+		polygon.setOnMouseClicked(_ -> {
+			if (tool != 3) return;
+			for (Vertex v : triangle.getVertices()) {
+				if (!selectedVertices.contains(v)) {
+					selectedVertices.add(v);
+				}
 			}
 		});
 	}
@@ -399,8 +451,12 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 	void drawPoint(Point3D point) {
 		Point2D projectedPoint = project(point);
 		if (projectedPoint == null) return;
-		Circle pixel = new Circle(projectedPoint.getX(), projectedPoint.getY(), 3, Color.BLACK);
-		pixel.setFill(Color.BLACK);
+		Color color = Color.BLACK;
+		if (tool == 3 && point instanceof Vertex) {
+			if (selection != null && selection.contains(projectedPoint)) selectedVertices.add((Vertex)point);
+			if (selectedVertices.contains(point)) color = Color.ORANGE;
+		}
+		Circle pixel = new Circle(projectedPoint.getX(), projectedPoint.getY(), 3, color);
 		mainPane.getChildren().add(pixel);
 	}
 
