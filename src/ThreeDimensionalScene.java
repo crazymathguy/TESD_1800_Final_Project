@@ -22,15 +22,14 @@ import javafx.scene.shape.Line;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Label;
 import javafx.scene.control.Button;
-import javax.swing.text.html.HTMLDocument;
 
 public class ThreeDimensionalScene extends Application implements Serializable {
 	// Conversion factor from world coordinates to screen coordinates
 	private static final double WORLD_TO_SCREEN_CONVERSION = 175;
 		// (700 / 4): 700 is the width of the window, 4.0 is the width of the screen in world coordinates, i.e. 1 unit is 175 pixels
-	// private static final Point3D ORIGIN = new Point3D(0, 0, 0);
 
-	private final Camera camera = new Camera(new Point3D(-3.0, 2.5, -6.0), Rotation.RotationByDegrees(-20.0, 30.0, 0.0), 3.0); // camera
+	// new Camera(new Point3D(-3.0, 2.5, -6.0), Rotation.RotationByDegrees(-20.0, 30.0, 0.0), 3.0);
+	private final Camera camera = new Camera(new Point3D(0.0, 0.0, -6.0), Rotation.RotationByDegrees(0.0, 0.0, 0.0), 3.0); // camera
 	private int renderMode = 1;
 	private int tool = 1;
 
@@ -44,6 +43,8 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 	private transient double startY; // Original mouse Y position during drag
 	private transient double lastX; // Last mouse X position during drag
 	private transient double lastY; // Last mouse Y position during drag
+	private transient double slope; // The slope of the mouse during drag
+	private transient boolean hasSlope; // Does the mouse know its slope?
 	private transient boolean dragging; // Is the mouse currently dragging?
 	private transient boolean pane; // Is the side pane currently open?
 
@@ -210,7 +211,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 
 		mainPane.setOnScroll(event -> {
 			if (tool > 2) return;
-			double deltaZ = -event.getDeltaY() / WORLD_TO_SCREEN_CONVERSION;
+			double deltaZ = event.getDeltaY() / WORLD_TO_SCREEN_CONVERSION;
 			camera.setPosition(camera.convertToWorldCoordinates(new Point3D(0, 0, deltaZ)));
 			xCoordinate.setText(Double.toString(camera.getX()));
 			yCoordinate.setText(Double.toString(camera.getY()));
@@ -218,6 +219,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			draw();
 		});
 		mainPane.setOnMousePressed(event -> {
+			hasSlope = false;
 			startX = event.getX();
 			startY = event.getY();
 			lastX = event.getX();
@@ -230,12 +232,29 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			}
 		});
 		mainPane.setOnMouseDragged(event -> {
+			double deltaX = (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION;
+			double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
+			lastX = event.getX();
+			lastY = event.getY();
+			if (event.isShiftDown()) {
+				if (!hasSlope) {
+					slope = deltaY / deltaX;
+					hasSlope = true;
+				}
+				if (Math.abs(slope) < 0.5) {
+					deltaY = 0;
+				} else if (slope >= 0.5 && slope <= 2) {
+					deltaX = (deltaX + deltaY) / 2;
+					deltaY = deltaX;
+				} else if (slope <= -0.5 && slope >= -2) {
+					deltaX = (deltaX - deltaY) / 2;
+					deltaY = -deltaX;
+				} else {
+					deltaX = 0;
+				}
+			}
 			switch (tool) {
 				case 1 -> {
-					double deltaX = (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION;
-					double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
-					lastX = event.getX();
-					lastY = event.getY();
 					camera.setPosition(camera.convertToWorldCoordinates(new Point3D(deltaX, deltaY, 0)));
 					xCoordinate.setText(Double.toString(camera.getX()));
 					yCoordinate.setText(Double.toString(camera.getY()));
@@ -243,11 +262,30 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					draw();
 				}
 				case 2 -> {
-					double deltaX = (lastX - event.getX()) / WORLD_TO_SCREEN_CONVERSION * Math.PI / 6;
-					double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION * Math.PI / 6;
+					deltaX *= Math.PI / 6;
+					deltaY *= Math.PI / 6;
 					lastX = event.getX();
 					lastY = event.getY();
-					camera.setOrientation(camera.getOrientation().add(deltaY, deltaX, 0));
+					if (event.isAltDown()) {
+						camera.setOrientation(camera.getOrientation().add(-deltaY, -deltaX, 0));
+						double thetaX = Math.toRadians(camera.getPosition().subtract(0, camera.getY(), 0).angle(0, 0, -1));
+						if (camera.getX() < 0) thetaX = Rotation.PI2 - thetaX;
+						thetaX += deltaX;
+						double thetaY = Math.toRadians(camera.getPosition().angle(camera.getX(), 0, camera.getZ()));
+						if (camera.getY() < 0) {
+							thetaY = Math.max(Rotation.PI2 - thetaY + deltaY, Math.PI * 3 / 2 + 0.01);
+						} else {
+							thetaY = Math.min(thetaY + deltaY, Math.PI / 2 - 0.01);
+						}
+						double distanceY = camera.getPosition().distance(0, 0, 0);
+						double distanceX = distanceY * Math.cos(thetaY);
+						camera.setPosition(new Point3D(distanceX * Math.sin(thetaX), distanceY * Math.sin(thetaY), distanceX * -Math.cos(thetaX)));
+						xCoordinate.setText(Double.toString(camera.getX()));
+						yCoordinate.setText(Double.toString(camera.getY()));
+						zCoordinate.setText(Double.toString(camera.getZ()));
+					} else {
+						camera.setOrientation(camera.getOrientation().add(deltaY, deltaX, 0));
+					}
 					draw();
 				}
 				case 3 -> {
