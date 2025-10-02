@@ -1,15 +1,12 @@
-import java.io.Serializable;
 import java.util.ArrayList;
+import java.io.Serializable;
 
-import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Point3D;
 import javafx.geometry.Pos;
-import javafx.stage.Stage;
 import javafx.scene.Cursor;
-import javafx.scene.Scene;
 import javafx.scene.paint.Color;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.BorderPane;
@@ -22,9 +19,8 @@ import javafx.scene.shape.Line;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Label;
 import javafx.scene.control.Button;
-import javax.swing.text.html.HTMLDocument;
 
-public class ThreeDimensionalScene extends Application implements Serializable {
+public class ThreeDimensionalScene extends BorderPane implements Serializable {
 	// Conversion factor from world coordinates to screen coordinates
 	private static final double WORLD_TO_SCREEN_CONVERSION = 175;
 		// (700 / 4): 700 is the width of the window, 4.0 is the width of the screen in world coordinates, i.e. 1 unit is 175 pixels
@@ -53,13 +49,13 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 	private final ArrayList<Vertex> points = new ArrayList<>();
 	private final ArrayList<Triangle> triangles = new ArrayList<>();
 
-	@Override
-	public void start(Stage primaryStage) {
+	public ThreeDimensionalScene() {
 		pane = false;
 		mainPane = new Pane();
 		mainPane.setStyle("-fx-background-color:rgb(70, 80, 80);");
 
-		BorderPane backPane = new BorderPane(mainPane);
+		setCenter(mainPane);
+
 		VBox pointControls = new VBox();
 		pointControls.setSpacing(20);
 		pointControls.setPadding(new Insets(2));
@@ -68,14 +64,14 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		pointControls.setStyle("-fx-background-color:rgb(40, 50, 50);");
 		
 		Button exitButton = new Button("x");
-		exitButton.setOnAction(_ -> {
-			backPane.setRight(null);
+		exitButton.setOnAction(event -> {
+			setRight(null);
 			pane = false;
 			mainPane.requestFocus();
 		});
 		exitButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(150, 150, 150); -fx-font-size: 12;");
-		exitButton.setOnMouseEntered(_ -> exitButton.setStyle("-fx-background-color: rgb(50, 60, 60); -fx-text-fill: rgb(150, 150, 150); -fx-font-size: 12;"));
-		exitButton.setOnMouseExited(_ -> exitButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(150, 150, 150); -fx-font-size: 12;"));
+		exitButton.setOnMouseEntered(event -> exitButton.setStyle("-fx-background-color: rgb(50, 60, 60); -fx-text-fill: rgb(150, 150, 150); -fx-font-size: 12;"));
+		exitButton.setOnMouseExited(event -> exitButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(150, 150, 150); -fx-font-size: 12;"));
 		exitButton.setAlignment(Pos.TOP_RIGHT);
 
 		Label xLabel = new Label("X:");
@@ -107,9 +103,9 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		zCoordinate.setStyle("-fx-background-color: rgb(70, 80, 80); -fx-text-fill: white; -fx-border-color: transparent;");
 		pointControls.getChildren().addAll(exitButton, xBox, yBox, zBox);
 
-		xCoordinate.textProperty().addListener((_, oldValue, newValue) -> {
+		xCoordinate.textProperty().addListener((event, oldValue, newValue) -> {
 			if (newValue.contains("p")) {
-				backPane.setRight(null);
+				setRight(null);
 				pane = false;
 				mainPane.requestFocus();
 			}
@@ -118,7 +114,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				return;
 			}
 		});
-		xCoordinate.focusedProperty().addListener((_, _, newV) -> {
+		xCoordinate.focusedProperty().addListener((event, oldV, newV) -> {
 			if (newV) {
 				xCoordinate.selectAll();
 			} else {
@@ -127,9 +123,9 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				draw();
 			}
 		});
-		yCoordinate.textProperty().addListener((_, oldValue, newValue) -> {
+		yCoordinate.textProperty().addListener((event, oldValue, newValue) -> {
 			if (newValue.contains("p")) {
-				backPane.setRight(null);
+				setRight(null);
 				pane = false;
 				mainPane.requestFocus();
 			}
@@ -138,7 +134,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				return;
 			}
 		});
-		yCoordinate.focusedProperty().addListener((_, _, newV) -> {
+		yCoordinate.focusedProperty().addListener((event, oldV, newV) -> {
 			if (newV) {
 				yCoordinate.selectAll();
 			} else {
@@ -147,9 +143,9 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				draw();
 			}
 		});
-		zCoordinate.textProperty().addListener((_, oldValue, newValue) -> {
+		zCoordinate.textProperty().addListener((event, oldValue, newValue) -> {
 			if (newValue.contains("p")) {
-				backPane.setRight(null);
+				setRight(null);
 				pane = false;
 				mainPane.requestFocus();
 			}
@@ -158,7 +154,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				return;
 			}
 		});
-		zCoordinate.focusedProperty().addListener((_, _, newV) -> {
+		zCoordinate.focusedProperty().addListener((event, oldV, newV) -> {
 			if (newV) {
 				zCoordinate.selectAll();
 			} else {
@@ -174,10 +170,10 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				case DOWN -> {if (tool <= 2) camera.setFocalLength(camera.getFocalLength() - 0.1);}
 				case P -> {
 					if (pane) {
-						backPane.setRight(null);
+						setRight(null);
 						pane = false;
 					} else {
-						backPane.setRight(pointControls);
+						setRight(pointControls);
 						pane = true;
 					}
 				}
@@ -204,7 +200,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			}
 			draw();
 		});
-		ChangeListener<Number> windowSizeListener = (_, _, _) -> draw();
+		ChangeListener<Number> windowSizeListener = (event, oldV, newV) -> draw();
 		mainPane.widthProperty().addListener(windowSizeListener);
 		mainPane.heightProperty().addListener(windowSizeListener);
 
@@ -262,7 +258,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				default -> {}
 			}
 		});
-		mainPane.setOnMouseReleased(_ -> {
+		mainPane.setOnMouseReleased(event -> {
 			dragging = false;
 			if (tool <= 2) mainPane.setCursor(Cursor.HAND);
 			if (tool == 3) {
@@ -271,10 +267,6 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			}
 		});
 
-		Scene scene = new Scene(backPane, 700, 500);
-		primaryStage.setTitle("3D Renderer");
-		primaryStage.setScene(scene);
-		primaryStage.show();
 		mainPane.requestFocus();
 		mainPane.setCursor(Cursor.HAND);
 		tool = 1;
@@ -414,31 +406,31 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			drawPoint(v);
 		}
 
-		polygon.setOnMouseEntered(_ -> {
+		polygon.setOnMouseEntered(event -> {
 			if (tool != 3) return;
 			if (renderMode > 0 && !dragging) {
 				polygon.setFill(Color.LIGHTGRAY);
 			}
 		});
-		polygon.setOnMousePressed(_ -> {
+		polygon.setOnMousePressed(event -> {
 			dragging = true;
 			if (tool != 3) return;
 			selectedVertices.clear();
 			draw();
 		});
-		polygon.setOnMouseReleased(_ -> {
+		polygon.setOnMouseReleased(event -> {
 			dragging = false;
 			if (tool != 3) return;
 			selection = null;
 			draw();
 		});
-		polygon.setOnMouseExited(_ -> {
+		polygon.setOnMouseExited(event -> {
 			if (tool != 3) return;
 			if (renderMode > 0 && !dragging) {
 				polygon.setFill(Color.DARKGRAY);
 			}
 		});
-		polygon.setOnMouseClicked(_ -> {
+		polygon.setOnMouseClicked(event -> {
 			if (tool != 3) return;
 			for (Vertex v : triangle.getVertices()) {
 				if (!selectedVertices.contains(v)) {
@@ -493,8 +485,5 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		double y = camera.getFocalLength() / convertedPoint.getZ() * -convertedPoint.getY() * WORLD_TO_SCREEN_CONVERSION + mainPane.getHeight() / 2;
 		return new Point2D(x, y);
 	}
-
-	public static void main(String[] args) throws Exception {
-		launch(args);
-	}
 }
+

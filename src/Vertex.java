@@ -1,5 +1,7 @@
-import java.util.ArrayList;
+import java.io.IOException;
 import java.io.Serializable;
+
+import java.util.ArrayList;
 import javafx.geometry.Point3D;
 
 public class Vertex extends Point3D implements Serializable {
@@ -21,5 +23,20 @@ public class Vertex extends Point3D implements Serializable {
 
 	public ArrayList<Triangle> getConnectedTriangles() {
 		return connectedTriangles;
+	}
+
+	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+		out.defaultWriteObject();
+		out.writeDouble(getX());
+		out.writeDouble(getY());
+		out.writeDouble(getZ());
+	}
+
+	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException{
+		in.defaultReadObject();
+		this.x = in.readDouble();
+		this.y = in.readDouble();
+		this.z = in.readDouble();
+		
 	}
 }
