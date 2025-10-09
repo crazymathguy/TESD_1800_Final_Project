@@ -423,7 +423,6 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 	// @SuppressWarnings("unchecked")
 	void drawAllTriangles() {
 		if (triangles.isEmpty()) return;
-		ArrayList<Point2D> intersections = new ArrayList<>();
 		ArrayList<Triangle> sortedTriangles = new ArrayList<>();
 		ArrayList<Polygon> polygons = new ArrayList<>();
 		// if (renderMode > 0) {
@@ -433,6 +432,8 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				Point3D v0 = camera.convertToCameraCoordinates(triangle.p1());
 				Point3D v1 = camera.convertToCameraCoordinates(triangle.p2());
 				Point3D v2 = camera.convertToCameraCoordinates(triangle.p3());
+				Point3D edge1 = v1.subtract(v0);
+				Point3D edge2 = v2.subtract(v0);
 
 				int currentSize = sortedTriangles.size();
 				int[] layering = new int[currentSize];
@@ -443,37 +444,20 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					Bounds intersection = bounds.getBoundsInLocal();
 					if (intersection.getWidth() < EPSILON || intersection.getHeight() < EPSILON) continue;
 					//mainPane.getChildren().add(bounds);
-					double intersectionX = (intersection.getCenterX() - mainPane.getWidth() / 2) / WORLD_TO_SCREEN_CONVERSION;
-					double intersectionY = -(intersection.getCenterY() - mainPane.getHeight() / 2) / WORLD_TO_SCREEN_CONVERSION;
-					intersections.add(new Point2D(intersection.getCenterX(), intersection.getCenterY()));
-					double intersectionZ = Math.sqrt(1 - intersectionX * intersectionX - intersectionY * intersectionY);
-					Point3D ray = new Point3D(intersectionX, intersectionY, intersectionZ);
+					Point3D ray = camera.convertToCameraCoordinates(other.getCenter());
+					double tOther = ray.magnitude();
+					ray = ray.normalize();
 					
 					// Intersection point of working triangle
-					Point3D edge1 = v1.subtract(v0);
-					Point3D edge2 = v2.subtract(v0);
 					double a = edge1.dotProduct(ray.crossProduct(edge2));
 					if (a > -EPSILON && a < EPSILON) continue;
 					double f = 1.0 / a;
 					Point3D q = v0.multiply(-1).crossProduct(edge1);
-					double t1 = f * edge2.dotProduct(q);
-					if (t1 < EPSILON) continue;
-					
-					// Intersection point of other triangle
-					Point3D otherV0 = camera.convertToCameraCoordinates(other.p1());
-					Point3D otherV1 = camera.convertToCameraCoordinates(other.p2());
-					Point3D otherV2 = camera.convertToCameraCoordinates(other.p3());
-					edge1 = otherV1.subtract(otherV0);
-					edge2 = otherV2.subtract(otherV0);
-					a = edge1.dotProduct(ray.crossProduct(edge2));
-					if (a > -EPSILON && a < EPSILON) continue;
-					f = 1.0 / a;
-					q = otherV0.multiply(-1).crossProduct(edge1);
-					double t2 = f * edge2.dotProduct(q);
-					if (t2 < EPSILON) continue;
+					double tThis = f * edge2.dotProduct(q);
+					if (tThis < EPSILON) continue;
 
 					// Compare Z coordinates of intersection points to determine which triangle is in front
-					if (t1 > t2) {
+					if (tThis > tOther) {
 						layering[i] = 1;
 					} else {
 						layering[i] = -1;
@@ -507,10 +491,6 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		// }
 		for (int triangle = 0; triangle < sortedTriangles.size(); triangle++) {
 			drawTriangle(sortedTriangles.get(triangle), polygons.get(triangle));
-		}
-		for (Point2D point : intersections) {
-			Circle circle = new Circle(point.getX(), point.getY(), 3, Color.ORANGE);
-			mainPane.getChildren().add(circle);
 		}
 	}
 	

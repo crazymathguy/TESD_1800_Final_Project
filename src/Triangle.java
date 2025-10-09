@@ -18,6 +18,7 @@ public record Triangle(Vertex p1, Vertex p2, Vertex p3) implements Serializable 
 
 	public Point3D barycentricCoordinates(double lamda1, double lamda2, double lamda3) {
 		double sum = lamda1 + lamda2 + lamda3;
+		if (sum < 0.001) return null;
 		lamda1 /= sum;
 		lamda2 /= sum;
 		lamda3 /= sum;
