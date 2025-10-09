@@ -16,10 +16,19 @@ public record Triangle(Vertex p1, Vertex p2, Vertex p3) implements Serializable 
 		return new Vertex[] {p1, p2, p3};
 	}
 
+	public Point3D barycentricCoordinates(double lamda1, double lamda2, double lamda3) {
+		double sum = lamda1 + lamda2 + lamda3;
+		if (sum < 0.001) return null;
+		lamda1 /= sum;
+		lamda2 /= sum;
+		lamda3 /= sum;
+		double x = p1.getX() * lamda1 + p2.getX() * lamda2 + p3.getX() * lamda3;
+		double y = p1.getY() * lamda1 + p2.getY() * lamda2 + p3.getY() * lamda3;
+		double z = p1.getZ() * lamda1 + p2.getZ() * lamda2 + p3.getZ() * lamda3;
+		return new Point3D(x, y, z);
+	}
+
 	public Point3D getCenter() {
-		double xAverage = (p1.getX() + p2.getX() + p3.getX()) / 3.0;
-		double yAverage = (p1.getY() + p2.getY() + p3.getY()) / 3.0;
-		double zAverage = (p1.getZ() + p2.getZ() + p3.getZ()) / 3.0;
-		return new Point3D(xAverage, yAverage, zAverage);
+		return barycentricCoordinates(1, 1, 1);
 	}
 }

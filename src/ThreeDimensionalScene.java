@@ -26,10 +26,11 @@ import javafx.scene.control.Button;
 public class ThreeDimensionalScene extends Application implements Serializable {
 	// Conversion factor from world coordinates to screen coordinates
 	private static final double WORLD_TO_SCREEN_CONVERSION = 175;
+	private static final double EPSILON = 0.0000001;
 		// (700 / 4): 700 is the width of the window, 4.0 is the width of the screen in world coordinates, i.e. 1 unit is 175 pixels
 
-	// new Camera(new Point3D(-3.0, 2.5, -6.0), Rotation.RotationByDegrees(-20.0, 30.0, 0.0), 3.0);
-	private final Camera camera = new Camera(new Point3D(0.0, 0.0, -6.0), Rotation.RotationByDegrees(0.0, 0.0, 0.0), 3.0); // camera
+	//Point3D(-3.0, 2.5, -6.0)
+	private final Camera camera = new Camera(new Point3D(-3.0, 2.5, -6.0), Rotation.RotationByDegrees(-20.0, 30.0, 0.0), 3.0);
 	private int renderMode = 1;
 	private int tool = 1;
 
@@ -201,6 +202,11 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					tool = 3;
 					mainPane.setCursor(Cursor.DEFAULT);
 				}
+				case R -> {
+					if (dragging) return;
+					tool = 4;
+					mainPane.setCursor(Cursor.MOVE);
+				}
 				default -> {}
 			}
 			draw();
@@ -243,15 +249,22 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				}
 				if (Math.abs(slope) < 0.5) {
 					deltaY = 0;
+					if (tool == 4) mainPane.setCursor(Cursor.H_RESIZE);
 				} else if (slope >= 0.5 && slope <= 2) {
 					deltaX = (deltaX + deltaY) / 2;
 					deltaY = deltaX;
+					if (tool == 4) mainPane.setCursor(Cursor.NE_RESIZE);
 				} else if (slope <= -0.5 && slope >= -2) {
 					deltaX = (deltaX - deltaY) / 2;
 					deltaY = -deltaX;
+					if (tool == 4) mainPane.setCursor(Cursor.NW_RESIZE);
 				} else {
 					deltaX = 0;
+					if (tool == 4) mainPane.setCursor(Cursor.V_RESIZE);
 				}
+			} else {
+				hasSlope = false;
+				if (tool == 4) mainPane.setCursor(Cursor.MOVE);
 			}
 			switch (tool) {
 				case 1 -> {
@@ -307,6 +320,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				selection = null;
 				draw();
 			}
+			if (tool == 4) mainPane.setCursor(Cursor.MOVE);
 		});
 
 		Scene scene = new Scene(backPane, 700, 500);
@@ -321,7 +335,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 
 		// Test objects
 		createTestCube();
-		// pressing 'q' will draw the square, pressing 'w' will draw the triangle, and 'e' the cube
+		// pressing '1' will draw the square, pressing '2' will draw the triangle, and '3' the cube
 	}
 
 	void createTestCube() {
@@ -365,9 +379,8 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		Vertex p1 = Vertex.createAndRegister(-1, -1, 0, points);
 		Vertex p2 = Vertex.createAndRegister(1, -1, 0, points);
 		Vertex p3 = Vertex.createAndRegister(0, 1, 0, points);
-		Triangle mainTriangle = Triangle.createAndRegister(p1, p2, p3, triangles);
+		Triangle.createAndRegister(p1, p2, p3, triangles);
 		draw();
-		drawPoint(mainTriangle.getCenter());
 	}
 
 	void clearScene(boolean draw) {
@@ -433,7 +446,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			drawTriangle(triangle);
 		}
 	}
-
+	
 	void drawTriangle(Triangle triangle) {
 		Polygon polygon = createPolygonFromTriangle(triangle);
 		if (polygon == null) return;
@@ -458,10 +471,10 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				polygon.setFill(Color.LIGHTGRAY);
 			}
 		});
-		polygon.setOnMousePressed(_ -> {
+		polygon.setOnMousePressed(event -> {
 			dragging = true;
 			if (tool != 3) return;
-			selectedVertices.clear();
+			if (!event.isShiftDown()) selectedVertices.clear();
 			draw();
 		});
 		polygon.setOnMouseReleased(_ -> {
@@ -523,13 +536,17 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		return polygon;
 	}
 
-	Point2D project(Point3D point) {
+	Point2D project(Point3D point, boolean isCameraCoordinates) {
 		if (point == null) return null;
-		Point3D convertedPoint = camera.convertToCameraCoordinates(point);
+		Point3D convertedPoint = isCameraCoordinates ? point : camera.convertToCameraCoordinates(point);
 		if (convertedPoint.getZ() < 0.001) return null;
 		double x = camera.getFocalLength() / convertedPoint.getZ() * convertedPoint.getX() * WORLD_TO_SCREEN_CONVERSION + mainPane.getWidth() / 2;
 		double y = camera.getFocalLength() / convertedPoint.getZ() * -convertedPoint.getY() * WORLD_TO_SCREEN_CONVERSION + mainPane.getHeight() / 2;
 		return new Point2D(x, y);
+	}
+
+	Point2D project(Point3D point) {
+		return project(point, false);
 	}
 
 	public static void main(String[] args) throws Exception {
