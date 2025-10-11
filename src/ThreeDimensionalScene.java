@@ -432,12 +432,12 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 	void draw() {
 		mainPane.getChildren().clear();
 		// Update axis positions
-		Point2D right = project(new Point3D(100, 0, 0));
-		Point2D left = project(new Point3D(-100, 0, 0));
-		Point2D up = project(new Point3D(0, 100, 0));
-		Point2D down = project(new Point3D(0, -100, 0));
-		Point2D forward = project(new Point3D(0, 0, 100));
-		Point2D back = project(new Point3D(0, 0, Math.clamp(camera.getZ() + 0.001, -100.0, 100.0)));
+		Point2D right = projectAndClip(new Point3D(100, 0, 0));
+		Point2D left = projectAndClip(new Point3D(-100, 0, 0));
+		Point2D up = projectAndClip(new Point3D(0, 100, 0));
+		Point2D down = projectAndClip(new Point3D(0, -100, 0));
+		Point2D forward = projectAndClip(new Point3D(0, 0, 100));
+		Point2D back = projectAndClip(new Point3D(0, 0, -100));
 		xAxis = right == null || left == null ? null : new Line(right.getX(), right.getY(), left.getX(), left.getY());
 		yAxis = up == null || down == null ? null : new Line(up.getX(), up.getY(), down.getX(), down.getY());
 		zAxis = forward == null || back == null ? null : new Line(forward.getX(), forward.getY(), back.getX(), back.getY());
@@ -645,6 +645,12 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 
 	Point2D project(Point3D point) {
 		return project(point, false);
+	}
+
+	Point2D projectAndClip(Point3D point) {
+		Point3D convertedPoint = camera.convertToCameraCoordinates(point);
+		Point3D clippedPoint = new Point3D(convertedPoint.getX(), convertedPoint.getY(), Math.max(convertedPoint.getZ(), 0.001));
+		return project(clippedPoint, true);
 	}
 
 	public static void main(String[] args) throws Exception {
