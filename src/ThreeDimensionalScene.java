@@ -682,6 +682,12 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		return project(point, false);
 	}
 
+	Point2D projectAndClip(Point3D point) {
+		Point3D convertedPoint = camera.convertToCameraCoordinates(point);
+		Point3D clippedPoint = new Point3D(convertedPoint.getX(), convertedPoint.getY(), Math.max(convertedPoint.getZ(), 0.001));
+		return project(clippedPoint, true);
+	}
+
 	public static void main(String[] args) throws Exception {
 		launch(args);
 	}
