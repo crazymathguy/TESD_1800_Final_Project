@@ -3,6 +3,7 @@ import java.util.ArrayList;
 
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Point3D;
@@ -15,6 +16,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Shape;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Circle;
@@ -242,7 +244,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
 			lastX = event.getX();
 			lastY = event.getY();
-			if (event.isShiftDown()) {
+			if (event.isShiftDown() && tool != 3) {
 				if (!hasSlope) {
 					slope = deltaY / deltaX;
 					hasSlope = true;
@@ -280,19 +282,22 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					lastX = event.getX();
 					lastY = event.getY();
 					if (event.isAltDown()) {
-						camera.setOrientation(camera.getOrientation().add(-deltaY, -deltaX, 0));
+						// Rotate around origin
 						double thetaX = Math.toRadians(camera.getPosition().subtract(0, camera.getY(), 0).angle(0, 0, -1));
 						if (camera.getX() < 0) thetaX = Rotation.PI2 - thetaX;
 						thetaX += deltaX;
 						double thetaY = Math.toRadians(camera.getPosition().angle(camera.getX(), 0, camera.getZ()));
 						if (camera.getY() < 0) {
-							thetaY = Math.max(Rotation.PI2 - thetaY + deltaY, Math.PI * 3 / 2 + 0.01);
+							deltaY = Math.max(Rotation.PI2 - thetaY + deltaY, Math.PI * 3 / 2 + 0.01) - (Rotation.PI2 - thetaY);
+							thetaY = Rotation.PI2 - thetaY + deltaY;
 						} else {
-							thetaY = Math.min(thetaY + deltaY, Math.PI / 2 - 0.01);
+							deltaY = Math.min(thetaY + deltaY, Math.PI / 2 - 0.01) - thetaY;
+							thetaY = thetaY + deltaY;
 						}
-						double distanceY = camera.getPosition().distance(0, 0, 0);
+						double distanceY = camera.getPosition().magnitude();
 						double distanceX = distanceY * Math.cos(thetaY);
 						camera.setPosition(new Point3D(distanceX * Math.sin(thetaX), distanceY * Math.sin(thetaY), distanceX * -Math.cos(thetaX)));
+						camera.setOrientation(camera.getOrientation().add(-deltaY, -deltaX, 0));
 						xCoordinate.setText(Double.toString(camera.getX()));
 						yCoordinate.setText(Double.toString(camera.getY()));
 						zCoordinate.setText(Double.toString(camera.getZ()));
@@ -418,37 +423,92 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		if (!pane) mainPane.requestFocus();
 	}
 
-	@SuppressWarnings("unchecked")
+	// @SuppressWarnings("unchecked")
 	void drawAllTriangles() {
 		if (triangles.isEmpty()) return;
-		ArrayList<Triangle> sortedTriangles = (ArrayList<Triangle>)triangles.clone();
-		if (renderMode > 0) {
-			// Sort triangles based on distance
-			sortedTriangles.clear();
-			ArrayList<Double> distances = new ArrayList<>();
-			distances.add(Double.NEGATIVE_INFINITY);
+		ArrayList<Triangle> sortedTriangles = new ArrayList<>();
+		ArrayList<Polygon> polygons = new ArrayList<>();
+		// if (renderMode > 0) {
 			for (Triangle triangle : triangles) {
-				double distance = camera.getPosition().distance(triangle.getCenter());
-				int currentSize = distances.size();
+				Polygon polygon = createPolygonFromTriangle(triangle);
+				if (polygon == null) continue;
+				Point3D v0 = camera.convertToCameraCoordinates(triangle.p1());
+				Point3D v1 = camera.convertToCameraCoordinates(triangle.p2());
+				Point3D v2 = camera.convertToCameraCoordinates(triangle.p3());
+				Point3D edge1 = v1.subtract(v0);
+				Point3D edge2 = v2.subtract(v0);
+
+				int currentSize = sortedTriangles.size();
+				int[] layering = new int[currentSize];
 				for (int i = 0; i < currentSize; i++) {
-					if (distance > distances.get(i)) {
-						distances.add(i, distance);
-						sortedTriangles.add(i, triangle);
+					Triangle other = sortedTriangles.get(i);
+					Shape bounds = Shape.intersect(polygon, polygons.get(i));
+					bounds.setStroke(Color.ORANGE);
+					Bounds intersection = bounds.getBoundsInLocal();
+					if (intersection.getWidth() < EPSILON || intersection.getHeight() < EPSILON) continue;
+					//mainPane.getChildren().add(bounds);
+					Point2D p = new Point2D(intersection.getCenterX(), intersection.getCenterY());
+					Point2D p1 = project(other.p1());
+					Point2D p2 = project(other.p2());
+					Point2D p3 = project(other.p3());
+					double d = p1.getX() * (p2.getY() - p3.getY()) + p2.getX() * (p3.getY() - p1.getY()) + p3.getX() * (p1.getY() - p2.getY());
+					double weight1 = ((p2.getY() - p3.getY()) * p.getX() + (p3.getX() - p2.getX()) * p.getY() + (p2.getX() * p3.getY() - p2.getY() * p3.getX())) / d;
+					double weight2 = ((p3.getY() - p1.getY()) * p.getX() + (p1.getX() - p3.getX()) * p.getY() + (p3.getX() * p1.getY() - p3.getY() * p1.getX())) / d;
+					double weight3 = ((p1.getY() - p2.getY()) * p.getX() + (p2.getX() - p1.getX()) * p.getY() + (p1.getX() * p2.getY() - p1.getY() * p2.getX())) / d;
+					if (weight1 < 0.001) weight1 = 0.001;
+					if (weight2 < 0.001) weight2 = 0.001;
+					if (weight3 < 0.001) weight3 = 0.001;
+					Point3D ray = camera.convertToCameraCoordinates(other.barycentricCoordinates(weight1, weight2, weight3));
+					double tOther = ray.magnitude();
+					ray = ray.normalize();
+					
+					// Intersection point of working triangle
+					double a = edge1.dotProduct(ray.crossProduct(edge2));
+					if (a > -EPSILON && a < EPSILON) continue;
+					double f = 1.0 / a;
+					Point3D q = v0.multiply(-1).crossProduct(edge1);
+					double tThis = f * edge2.dotProduct(q);
+					if (tThis < EPSILON) continue;
+
+					// Compare Z coordinates of intersection points to determine which triangle is in front
+					if (tThis > tOther) {
+						layering[i] = 1;
+					} else {
+						layering[i] = -1;
 					}
 				}
-				if (distances.isEmpty()) {
-					distances.add(distance);
+				int position = -1;
+				for (int layer = 0; layer < currentSize; layer++) {
+					if (position < 0) {
+						if (layering[layer] == 1) {
+							position = layer;
+							sortedTriangles.add(position, triangle);
+							polygons.add(position, polygon);
+						}
+					} else {
+						if (layering[layer] == -1) {
+							sortedTriangles.add(position, sortedTriangles.get(layer + 1));
+							polygons.add(position, polygons.get(layer + 1));
+							position++;
+							sortedTriangles.remove(layer + 2);
+							polygons.remove(layer + 2);
+						}
+					}
+				}
+				if (position == -1) {
 					sortedTriangles.add(triangle);
+					polygons.add(polygon);
 				}
 			}
-		}
-		for (Triangle triangle : sortedTriangles) {
-			drawTriangle(triangle);
+		// } else {
+		//	sortedTriangles = triangles;
+		// }
+		for (int triangle = 0; triangle < sortedTriangles.size(); triangle++) {
+			drawTriangle(sortedTriangles.get(triangle), polygons.get(triangle));
 		}
 	}
 	
-	void drawTriangle(Triangle triangle) {
-		Polygon polygon = createPolygonFromTriangle(triangle);
+	void drawTriangle(Triangle triangle, Polygon polygon) {
 		if (polygon == null) return;
 		switch (renderMode) {
 			case 0 -> {
@@ -464,6 +524,10 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		for (Vertex v : triangle.getVertices()) {
 			drawPoint(v);
 		}
+		//drawPoint(triangle.getCenter());
+		//drawPoint(triangle.barycentricCoordinates(1, 1, 0.05));
+		//drawPoint(triangle.barycentricCoordinates(1, 0.05, 1));
+		//drawPoint(triangle.barycentricCoordinates(0.05, 1, 1));
 
 		polygon.setOnMouseEntered(_ -> {
 			if (tool != 3) return;
@@ -496,6 +560,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					selectedVertices.add(v);
 				}
 			}
+			draw();
 		});
 	}
 
