@@ -186,9 +186,10 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					}
 				}
 				case DIGIT0 -> renderMode = (renderMode + 1) % 2;
-				case DIGIT1 -> createTestSquare();
-				case DIGIT2 -> createTestTriangle();
-				case DIGIT3 -> createTestCube();
+				case DIGIT1 -> createCube();
+				case DIGIT2 -> createTetrahedron();
+				case DIGIT3 -> createOctahedron();
+
 				case Q -> {
 					if (dragging) return;
 					tool = 1;
@@ -339,11 +340,45 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		// clearScene(true);
 
 		// Test objects
-		createTestCube();
+		createCube();
 		// pressing '1' will draw the square, pressing '2' will draw the triangle, and '3' the cube
 	}
 
-	void createTestCube() {
+	void createTetrahedron() {
+		clearScene(false);
+		double thirdLength = Math.sqrt(3) / 3.0;
+		double halfHeight = Math.sqrt(2.0 / 3.0);
+		Vertex v1 = Vertex.createAndRegister(0, halfHeight, 0, points);
+		Vertex v2 = Vertex.createAndRegister(0, -halfHeight, -(2 * thirdLength), points);
+		Vertex v3 = Vertex.createAndRegister(-1, -halfHeight, thirdLength, points);
+		Vertex v4 = Vertex.createAndRegister(1, -halfHeight, thirdLength, points);
+		Triangle.createAndRegister(v1, v2, v3, triangles);
+		Triangle.createAndRegister(v1, v2, v4, triangles);
+		Triangle.createAndRegister(v1, v3, v4, triangles);
+		Triangle.createAndRegister(v2, v3, v4, triangles);
+		draw();
+	}
+
+	void createOctahedron() {
+		clearScene(false);
+		Vertex v1 = Vertex.createAndRegister(0, 1, 0, points);
+		Vertex v2 = Vertex.createAndRegister(-1, 0, 0, points);
+		Vertex v3 = Vertex.createAndRegister(0, 0, 1, points);
+		Vertex v4 = Vertex.createAndRegister(1, 0, 0, points);
+		Vertex v5 = Vertex.createAndRegister(0, 0, -1, points);
+		Vertex v6 = Vertex.createAndRegister(0, -1, 0, points);
+		Triangle.createAndRegister(v1, v2, v3, triangles);
+		Triangle.createAndRegister(v1, v3, v4, triangles);
+		Triangle.createAndRegister(v1, v4, v5, triangles);
+		Triangle.createAndRegister(v1, v5, v2, triangles);
+		Triangle.createAndRegister(v6, v2, v3, triangles);
+		Triangle.createAndRegister(v6, v3, v4, triangles);
+		Triangle.createAndRegister(v6, v4, v5, triangles);
+		Triangle.createAndRegister(v6, v5, v2, triangles);
+		draw();
+	}
+
+	void createCube() {
 		clearScene(false);
 		Vertex v1 = Vertex.createAndRegister(-1, -1, 1, points);
 		Vertex v2 = Vertex.createAndRegister(-1, -1, -1, points);
@@ -443,10 +478,8 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				for (int i = 0; i < currentSize; i++) {
 					Triangle other = sortedTriangles.get(i);
 					Shape bounds = Shape.intersect(polygon, polygons.get(i));
-					bounds.setStroke(Color.ORANGE);
 					Bounds intersection = bounds.getBoundsInLocal();
 					if (intersection.getWidth() < EPSILON || intersection.getHeight() < EPSILON) continue;
-					//mainPane.getChildren().add(bounds);
 					Point2D p = new Point2D(intersection.getCenterX(), intersection.getCenterY());
 					Point2D p1 = project(other.p1());
 					Point2D p2 = project(other.p2());
