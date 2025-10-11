@@ -282,19 +282,22 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					lastX = event.getX();
 					lastY = event.getY();
 					if (event.isAltDown()) {
-						camera.setOrientation(camera.getOrientation().add(-deltaY, -deltaX, 0));
+						// Rotate around origin
 						double thetaX = Math.toRadians(camera.getPosition().subtract(0, camera.getY(), 0).angle(0, 0, -1));
 						if (camera.getX() < 0) thetaX = Rotation.PI2 - thetaX;
 						thetaX += deltaX;
 						double thetaY = Math.toRadians(camera.getPosition().angle(camera.getX(), 0, camera.getZ()));
 						if (camera.getY() < 0) {
-							thetaY = Math.max(Rotation.PI2 - thetaY + deltaY, Math.PI * 3 / 2 + 0.01);
+							deltaY = Math.max(Rotation.PI2 - thetaY + deltaY, Math.PI * 3 / 2 + 0.01) - (Rotation.PI2 - thetaY);
+							thetaY = Rotation.PI2 - thetaY + deltaY;
 						} else {
-							thetaY = Math.min(thetaY + deltaY, Math.PI / 2 - 0.01);
+							deltaY = Math.min(thetaY + deltaY, Math.PI / 2 - 0.01) - thetaY;
+							thetaY = thetaY + deltaY;
 						}
-						double distanceY = camera.getPosition().distance(0, 0, 0);
+						double distanceY = camera.getPosition().magnitude();
 						double distanceX = distanceY * Math.cos(thetaY);
 						camera.setPosition(new Point3D(distanceX * Math.sin(thetaX), distanceY * Math.sin(thetaY), distanceX * -Math.cos(thetaX)));
+						camera.setOrientation(camera.getOrientation().add(-deltaY, -deltaX, 0));
 						xCoordinate.setText(Double.toString(camera.getX()));
 						yCoordinate.setText(Double.toString(camera.getY()));
 						zCoordinate.setText(Double.toString(camera.getZ()));
@@ -444,7 +447,18 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					Bounds intersection = bounds.getBoundsInLocal();
 					if (intersection.getWidth() < EPSILON || intersection.getHeight() < EPSILON) continue;
 					//mainPane.getChildren().add(bounds);
-					Point3D ray = camera.convertToCameraCoordinates(other.getCenter());
+					Point2D p = new Point2D(intersection.getCenterX(), intersection.getCenterY());
+					Point2D p1 = project(other.p1());
+					Point2D p2 = project(other.p2());
+					Point2D p3 = project(other.p3());
+					double d = p1.getX() * (p2.getY() - p3.getY()) + p2.getX() * (p3.getY() - p1.getY()) + p3.getX() * (p1.getY() - p2.getY());
+					double weight1 = ((p2.getY() - p3.getY()) * p.getX() + (p3.getX() - p2.getX()) * p.getY() + (p2.getX() * p3.getY() - p2.getY() * p3.getX())) / d;
+					double weight2 = ((p3.getY() - p1.getY()) * p.getX() + (p1.getX() - p3.getX()) * p.getY() + (p3.getX() * p1.getY() - p3.getY() * p1.getX())) / d;
+					double weight3 = ((p1.getY() - p2.getY()) * p.getX() + (p2.getX() - p1.getX()) * p.getY() + (p1.getX() * p2.getY() - p1.getY() * p2.getX())) / d;
+					if (weight1 < 0.001) weight1 = 0.001;
+					if (weight2 < 0.001) weight2 = 0.001;
+					if (weight3 < 0.001) weight3 = 0.001;
+					Point3D ray = camera.convertToCameraCoordinates(other.barycentricCoordinates(weight1, weight2, weight3));
 					double tOther = ray.magnitude();
 					ray = ray.normalize();
 					
