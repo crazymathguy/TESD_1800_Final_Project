@@ -1,6 +1,30 @@
 # 3D Renderer
 This project renders 3-Dimensional objects using vertices and triangles to connect them.
 
+I created this entire project by myself.
+
+## How To Run
+This project runs on javafx, but everything else is entirely from scratch. You may need to add javafx to the project dependencies.
+
+This project needs all of the files in the `src` folder, and the `.vscode` folder if running it in VSCode. Everything else is for gitHub.
+
+The main method is in `ThreeDimensionalScene.java`.
+
+Here is an example run:
+![3D cube with colored lines coming out in different directions](example_run.png)
+
+This is the code responsible for displaying points on the screen. It is obviously one of the most important parts of 3D rendering, and it is what inspired me to make this project in the first place.
+```
+	Point2D project(Point3D point, boolean isCameraCoordinates) {
+		if (point == null) return null;
+		Point3D convertedPoint = isCameraCoordinates ? point : camera.convertToCameraCoordinates(point);
+		if (convertedPoint.getZ() < 0.001) return null;
+		double x = camera.getFocalLength() / convertedPoint.getZ() * convertedPoint.getX() * WORLD_TO_SCREEN_CONVERSION + mainPane.getWidth() / 2;
+		double y = camera.getFocalLength() / convertedPoint.getZ() * -convertedPoint.getY() * WORLD_TO_SCREEN_CONVERSION + mainPane.getHeight() / 2;
+		return new Point2D(x, y);
+    }
+```
+
 ## Controls
 #### Tools:
 - `q`: "pan" tool (moves the camera position)
