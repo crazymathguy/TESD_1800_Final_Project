@@ -432,12 +432,47 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 	void draw() {
 		mainPane.getChildren().clear();
 		// Update axis positions
-		Point2D right = project(new Point3D(100, 0, 0));
-		Point2D left = project(new Point3D(-100, 0, 0));
-		Point2D up = project(new Point3D(0, 100, 0));
-		Point2D down = project(new Point3D(0, -100, 0));
-		Point2D forward = project(new Point3D(0, 0, 100));
-		Point2D back = project(new Point3D(0, 0, Math.clamp(camera.getZ() + 0.001, -100.0, 100.0)));
+		Point3D r = camera.convertToCameraCoordinates(100, 0, 0);
+		Point3D l = camera.convertToCameraCoordinates(-100, 0, 0);
+		Point2D right = project(r, true);
+		Point2D left = project(l, true);
+		Point3D u = camera.convertToCameraCoordinates(0, 100, 0);
+		Point3D d = camera.convertToCameraCoordinates(0, -100, 0);
+		Point2D up = project(u, true);
+		Point2D down = project(d, true);
+		Point3D f = camera.convertToCameraCoordinates(0, 0, 100);
+		Point3D b = camera.convertToCameraCoordinates(0, 0, -100);
+		Point2D forward = project(f, true);
+		Point2D back = project(b, true);
+
+		// If both points are behind the camera, do not draw the axis
+		// If one point is behind the camera, clip the line at the camera plane and project that point instead
+		double cameraDistance = camera.convertToCameraCoordinates(0.0, 0.0, 0.0).getZ();
+			// Distance from camera to origin, used to determine clipping length
+		if (right == null && left == null) {}
+		else if (right == null) {
+			double clipLength = ((cameraDistance - 0.01) / (r.getZ() - cameraDistance) + 1.0) / 2.0;
+			right = project(r.interpolate(l, clipLength), true);
+		} else if (left == null) {
+			double clipLength = ((cameraDistance - 0.01) / (l.getZ() - cameraDistance) + 1.0) / 2.0;
+			left = project(l.interpolate(r, clipLength), true);
+		}
+		if (up == null && down == null) {}
+		else if (up == null) {
+			double clipLength = ((cameraDistance - 0.01) / (u.getZ() - cameraDistance) + 1.0) / 2.0;
+			up = project(u.interpolate(d, clipLength), true);
+		} else if (down == null) {
+			double clipLength = ((cameraDistance - 0.01) / (d.getZ() - cameraDistance) + 1.0) / 2.0;
+			down = project(d.interpolate(u, clipLength), true);
+		}
+		if (forward == null && back == null) {}
+		else if (forward == null) {
+			double clipLength = ((cameraDistance - 0.01) / (f.getZ() - cameraDistance) + 1.0) / 2.0;
+			forward = project(f.interpolate(b, clipLength), true);
+		} else if (back == null) {
+			double clipLength = ((cameraDistance - 0.01) / (b.getZ() - cameraDistance) + 1.0) / 2.0;
+			back = project(b.interpolate(f, clipLength), true);
+		}
 		xAxis = right == null || left == null ? null : new Line(right.getX(), right.getY(), left.getX(), left.getY());
 		yAxis = up == null || down == null ? null : new Line(up.getX(), up.getY(), down.getX(), down.getY());
 		zAxis = forward == null || back == null ? null : new Line(forward.getX(), forward.getY(), back.getX(), back.getY());

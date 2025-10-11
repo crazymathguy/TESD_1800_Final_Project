@@ -91,6 +91,10 @@ public class Camera implements Serializable {
         return new Point3D(x, y, z);
     }
 
+    public Point3D convertToCameraCoordinates(double x, double y, double z) {
+        return convertToCameraCoordinates(new Point3D(x, y, z));
+    }
+
     public Point3D convertToWorldCoordinates(Point3D point) {
         double tempX;
         double tempY;
@@ -119,5 +123,9 @@ public class Camera implements Serializable {
         z = z + position.getZ();
 
         return new Point3D(x, y, z);
+    }
+
+    public Point3D convertToWorldCoordinates(double x, double y, double z) {
+        return convertToWorldCoordinates(new Point3D(x, y, z));
     }
 }
