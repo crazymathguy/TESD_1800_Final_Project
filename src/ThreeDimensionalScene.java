@@ -3,6 +3,7 @@ import java.util.ArrayList;
 
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Point3D;
@@ -15,6 +16,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Shape;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Circle;
@@ -26,10 +28,11 @@ import javafx.scene.control.Button;
 public class ThreeDimensionalScene extends Application implements Serializable {
 	// Conversion factor from world coordinates to screen coordinates
 	private static final double WORLD_TO_SCREEN_CONVERSION = 175;
+	private static final double EPSILON = 0.0000001;
 		// (700 / 4): 700 is the width of the window, 4.0 is the width of the screen in world coordinates, i.e. 1 unit is 175 pixels
 
-	// new Camera(new Point3D(-3.0, 2.5, -6.0), Rotation.RotationByDegrees(-20.0, 30.0, 0.0), 3.0);
-	private final Camera camera = new Camera(new Point3D(0.0, 0.0, -6.0), Rotation.RotationByDegrees(0.0, 0.0, 0.0), 3.0); // camera
+	//Point3D(-3.0, 2.5, -6.0)
+	private final Camera camera = new Camera(new Point3D(-3.0, 2.5, -6.0), Rotation.RotationByDegrees(-20.0, 30.0, 0.0), 3.0);
 	private int renderMode = 1;
 	private int tool = 1;
 
@@ -201,6 +204,11 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					tool = 3;
 					mainPane.setCursor(Cursor.DEFAULT);
 				}
+				case R -> {
+					if (dragging) return;
+					tool = 4;
+					mainPane.setCursor(Cursor.MOVE);
+				}
 				default -> {}
 			}
 			draw();
@@ -236,22 +244,29 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 			double deltaY = -(lastY - event.getY()) / WORLD_TO_SCREEN_CONVERSION;
 			lastX = event.getX();
 			lastY = event.getY();
-			if (event.isShiftDown()) {
+			if (event.isShiftDown() && tool != 3) {
 				if (!hasSlope) {
 					slope = deltaY / deltaX;
 					hasSlope = true;
 				}
 				if (Math.abs(slope) < 0.5) {
 					deltaY = 0;
+					if (tool == 4) mainPane.setCursor(Cursor.H_RESIZE);
 				} else if (slope >= 0.5 && slope <= 2) {
 					deltaX = (deltaX + deltaY) / 2;
 					deltaY = deltaX;
+					if (tool == 4) mainPane.setCursor(Cursor.NE_RESIZE);
 				} else if (slope <= -0.5 && slope >= -2) {
 					deltaX = (deltaX - deltaY) / 2;
 					deltaY = -deltaX;
+					if (tool == 4) mainPane.setCursor(Cursor.NW_RESIZE);
 				} else {
 					deltaX = 0;
+					if (tool == 4) mainPane.setCursor(Cursor.V_RESIZE);
 				}
+			} else {
+				hasSlope = false;
+				if (tool == 4) mainPane.setCursor(Cursor.MOVE);
 			}
 			switch (tool) {
 				case 1 -> {
@@ -267,19 +282,22 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					lastX = event.getX();
 					lastY = event.getY();
 					if (event.isAltDown()) {
-						camera.setOrientation(camera.getOrientation().add(-deltaY, -deltaX, 0));
+						// Rotate around origin
 						double thetaX = Math.toRadians(camera.getPosition().subtract(0, camera.getY(), 0).angle(0, 0, -1));
 						if (camera.getX() < 0) thetaX = Rotation.PI2 - thetaX;
 						thetaX += deltaX;
 						double thetaY = Math.toRadians(camera.getPosition().angle(camera.getX(), 0, camera.getZ()));
 						if (camera.getY() < 0) {
-							thetaY = Math.max(Rotation.PI2 - thetaY + deltaY, Math.PI * 3 / 2 + 0.01);
+							deltaY = Math.max(Rotation.PI2 - thetaY + deltaY, Math.PI * 3 / 2 + 0.01) - (Rotation.PI2 - thetaY);
+							thetaY = Rotation.PI2 - thetaY + deltaY;
 						} else {
-							thetaY = Math.min(thetaY + deltaY, Math.PI / 2 - 0.01);
+							deltaY = Math.min(thetaY + deltaY, Math.PI / 2 - 0.01) - thetaY;
+							thetaY = thetaY + deltaY;
 						}
-						double distanceY = camera.getPosition().distance(0, 0, 0);
+						double distanceY = camera.getPosition().magnitude();
 						double distanceX = distanceY * Math.cos(thetaY);
 						camera.setPosition(new Point3D(distanceX * Math.sin(thetaX), distanceY * Math.sin(thetaY), distanceX * -Math.cos(thetaX)));
+						camera.setOrientation(camera.getOrientation().add(-deltaY, -deltaX, 0));
 						xCoordinate.setText(Double.toString(camera.getX()));
 						yCoordinate.setText(Double.toString(camera.getY()));
 						zCoordinate.setText(Double.toString(camera.getZ()));
@@ -307,6 +325,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				selection = null;
 				draw();
 			}
+			if (tool == 4) mainPane.setCursor(Cursor.MOVE);
 		});
 
 		Scene scene = new Scene(backPane, 700, 500);
@@ -321,7 +340,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 
 		// Test objects
 		createTestCube();
-		// pressing 'q' will draw the square, pressing 'w' will draw the triangle, and 'e' the cube
+		// pressing '1' will draw the square, pressing '2' will draw the triangle, and '3' the cube
 	}
 
 	void createTestCube() {
@@ -365,9 +384,8 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		Vertex p1 = Vertex.createAndRegister(-1, -1, 0, points);
 		Vertex p2 = Vertex.createAndRegister(1, -1, 0, points);
 		Vertex p3 = Vertex.createAndRegister(0, 1, 0, points);
-		Triangle mainTriangle = Triangle.createAndRegister(p1, p2, p3, triangles);
+		Triangle.createAndRegister(p1, p2, p3, triangles);
 		draw();
-		drawPoint(mainTriangle.getCenter());
 	}
 
 	void clearScene(boolean draw) {
@@ -405,37 +423,92 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		if (!pane) mainPane.requestFocus();
 	}
 
-	@SuppressWarnings("unchecked")
+	// @SuppressWarnings("unchecked")
 	void drawAllTriangles() {
 		if (triangles.isEmpty()) return;
-		ArrayList<Triangle> sortedTriangles = (ArrayList<Triangle>)triangles.clone();
-		if (renderMode > 0) {
-			// Sort triangles based on distance
-			sortedTriangles.clear();
-			ArrayList<Double> distances = new ArrayList<>();
-			distances.add(Double.NEGATIVE_INFINITY);
+		ArrayList<Triangle> sortedTriangles = new ArrayList<>();
+		ArrayList<Polygon> polygons = new ArrayList<>();
+		// if (renderMode > 0) {
 			for (Triangle triangle : triangles) {
-				double distance = camera.getPosition().distance(triangle.getCenter());
-				int currentSize = distances.size();
+				Polygon polygon = createPolygonFromTriangle(triangle);
+				if (polygon == null) continue;
+				Point3D v0 = camera.convertToCameraCoordinates(triangle.p1());
+				Point3D v1 = camera.convertToCameraCoordinates(triangle.p2());
+				Point3D v2 = camera.convertToCameraCoordinates(triangle.p3());
+				Point3D edge1 = v1.subtract(v0);
+				Point3D edge2 = v2.subtract(v0);
+
+				int currentSize = sortedTriangles.size();
+				int[] layering = new int[currentSize];
 				for (int i = 0; i < currentSize; i++) {
-					if (distance > distances.get(i)) {
-						distances.add(i, distance);
-						sortedTriangles.add(i, triangle);
+					Triangle other = sortedTriangles.get(i);
+					Shape bounds = Shape.intersect(polygon, polygons.get(i));
+					bounds.setStroke(Color.ORANGE);
+					Bounds intersection = bounds.getBoundsInLocal();
+					if (intersection.getWidth() < EPSILON || intersection.getHeight() < EPSILON) continue;
+					//mainPane.getChildren().add(bounds);
+					Point2D p = new Point2D(intersection.getCenterX(), intersection.getCenterY());
+					Point2D p1 = project(other.p1());
+					Point2D p2 = project(other.p2());
+					Point2D p3 = project(other.p3());
+					double d = p1.getX() * (p2.getY() - p3.getY()) + p2.getX() * (p3.getY() - p1.getY()) + p3.getX() * (p1.getY() - p2.getY());
+					double weight1 = ((p2.getY() - p3.getY()) * p.getX() + (p3.getX() - p2.getX()) * p.getY() + (p2.getX() * p3.getY() - p2.getY() * p3.getX())) / d;
+					double weight2 = ((p3.getY() - p1.getY()) * p.getX() + (p1.getX() - p3.getX()) * p.getY() + (p3.getX() * p1.getY() - p3.getY() * p1.getX())) / d;
+					double weight3 = ((p1.getY() - p2.getY()) * p.getX() + (p2.getX() - p1.getX()) * p.getY() + (p1.getX() * p2.getY() - p1.getY() * p2.getX())) / d;
+					if (weight1 < 0.001) weight1 = 0.001;
+					if (weight2 < 0.001) weight2 = 0.001;
+					if (weight3 < 0.001) weight3 = 0.001;
+					Point3D ray = camera.convertToCameraCoordinates(other.barycentricCoordinates(weight1, weight2, weight3));
+					double tOther = ray.magnitude();
+					ray = ray.normalize();
+					
+					// Intersection point of working triangle
+					double a = edge1.dotProduct(ray.crossProduct(edge2));
+					if (a > -EPSILON && a < EPSILON) continue;
+					double f = 1.0 / a;
+					Point3D q = v0.multiply(-1).crossProduct(edge1);
+					double tThis = f * edge2.dotProduct(q);
+					if (tThis < EPSILON) continue;
+
+					// Compare Z coordinates of intersection points to determine which triangle is in front
+					if (tThis > tOther) {
+						layering[i] = 1;
+					} else {
+						layering[i] = -1;
 					}
 				}
-				if (distances.isEmpty()) {
-					distances.add(distance);
+				int position = -1;
+				for (int layer = 0; layer < currentSize; layer++) {
+					if (position < 0) {
+						if (layering[layer] == 1) {
+							position = layer;
+							sortedTriangles.add(position, triangle);
+							polygons.add(position, polygon);
+						}
+					} else {
+						if (layering[layer] == -1) {
+							sortedTriangles.add(position, sortedTriangles.get(layer + 1));
+							polygons.add(position, polygons.get(layer + 1));
+							position++;
+							sortedTriangles.remove(layer + 2);
+							polygons.remove(layer + 2);
+						}
+					}
+				}
+				if (position == -1) {
 					sortedTriangles.add(triangle);
+					polygons.add(polygon);
 				}
 			}
-		}
-		for (Triangle triangle : sortedTriangles) {
-			drawTriangle(triangle);
+		// } else {
+		//	sortedTriangles = triangles;
+		// }
+		for (int triangle = 0; triangle < sortedTriangles.size(); triangle++) {
+			drawTriangle(sortedTriangles.get(triangle), polygons.get(triangle));
 		}
 	}
-
-	void drawTriangle(Triangle triangle) {
-		Polygon polygon = createPolygonFromTriangle(triangle);
+	
+	void drawTriangle(Triangle triangle, Polygon polygon) {
 		if (polygon == null) return;
 		switch (renderMode) {
 			case 0 -> {
@@ -451,6 +524,10 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		for (Vertex v : triangle.getVertices()) {
 			drawPoint(v);
 		}
+		//drawPoint(triangle.getCenter());
+		//drawPoint(triangle.barycentricCoordinates(1, 1, 0.05));
+		//drawPoint(triangle.barycentricCoordinates(1, 0.05, 1));
+		//drawPoint(triangle.barycentricCoordinates(0.05, 1, 1));
 
 		polygon.setOnMouseEntered(_ -> {
 			if (tool != 3) return;
@@ -458,10 +535,10 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 				polygon.setFill(Color.LIGHTGRAY);
 			}
 		});
-		polygon.setOnMousePressed(_ -> {
+		polygon.setOnMousePressed(event -> {
 			dragging = true;
 			if (tool != 3) return;
-			selectedVertices.clear();
+			if (!event.isShiftDown()) selectedVertices.clear();
 			draw();
 		});
 		polygon.setOnMouseReleased(_ -> {
@@ -483,6 +560,7 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 					selectedVertices.add(v);
 				}
 			}
+			draw();
 		});
 	}
 
@@ -523,13 +601,17 @@ public class ThreeDimensionalScene extends Application implements Serializable {
 		return polygon;
 	}
 
-	Point2D project(Point3D point) {
+	Point2D project(Point3D point, boolean isCameraCoordinates) {
 		if (point == null) return null;
-		Point3D convertedPoint = camera.convertToCameraCoordinates(point);
+		Point3D convertedPoint = isCameraCoordinates ? point : camera.convertToCameraCoordinates(point);
 		if (convertedPoint.getZ() < 0.001) return null;
 		double x = camera.getFocalLength() / convertedPoint.getZ() * convertedPoint.getX() * WORLD_TO_SCREEN_CONVERSION + mainPane.getWidth() / 2;
 		double y = camera.getFocalLength() / convertedPoint.getZ() * -convertedPoint.getY() * WORLD_TO_SCREEN_CONVERSION + mainPane.getHeight() / 2;
 		return new Point2D(x, y);
+	}
+
+	Point2D project(Point3D point) {
+		return project(point, false);
 	}
 
 	public static void main(String[] args) throws Exception {
